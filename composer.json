@@ -1,5 +1,5 @@
 {
-    "name": "php-sit/service",
+    "name": "sitphp/services",
     "description": "A simple tool to build PHP services",
     "keywords": ["php", "services", "decorator", "initializer"],
     "homepage": "https://github.com/php-sit/service",
