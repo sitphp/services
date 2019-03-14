@@ -8,8 +8,8 @@ class ServiceProvider
 {
     protected static $services = [];
     protected static $services_by_tag = [];
-    protected static $decorators = [];
-    protected static $decorators_service = [];
+    protected static $modifiers = [];
+    protected static $modifiers_service = [];
     protected static $initializers = [];
     protected static $initializers_service = [];
     protected static $prepared = [];
@@ -52,7 +52,7 @@ class ServiceProvider
         }
     }
 
-    static function removeService($name, bool $remove_decorators = true, bool $remove_initializers = true){
+    static function removeService($name, bool $remove_modifiers = true, bool $remove_initializers = true){
         $service = self::$services[$name] ?? null;
         if($service === null){
             return false;
@@ -63,8 +63,8 @@ class ServiceProvider
         unset(self::$services[$name]);
         unset(self::$prepared[$name]);
 
-        if($remove_decorators){
-            self::removeDecorators($name);
+        if($remove_modifiers){
+            self::removeModifiers($name);
         }
         if($remove_initializers){
             self::removeInitializers($name);
@@ -72,11 +72,11 @@ class ServiceProvider
         return true;
     }
 
-    static function removeDecorators($service_name){
-        unset(self::$decorators[$service_name]);
-        foreach (self::$decorators_service as $decorator => $service){
+    static function removeModifiers($service_name){
+        unset(self::$modifiers[$service_name]);
+        foreach (self::$modifiers_service as $modifier => $service){
             if($service_name == $service){
-                unset(self::$decorators_service[$decorator]);
+                unset(self::$modifiers_service[$modifier]);
             }
         }
     }
@@ -98,18 +98,18 @@ class ServiceProvider
         return $services;
     }
 
-    static function addDecorator(string $service_name, $decorator, int $priority = null){
+    static function addModifier(string $service_name, $modifier, int $priority = null){
         if(isset(self::$prepared[$service_name])){
-            throw new \LogicException('Cannot add decorator to service "'.$service_name.'" : service has already been retrieved');
+            throw new \LogicException('Cannot add modifier to service "'.$service_name.'" : service has already been retrieved');
         }
 
-        if(!isset(self::$decorators[$service_name])){
-            self::$decorators[$service_name] = new Collection();
+        if(!isset(self::$modifiers[$service_name])){
+            self::$modifiers[$service_name] = new Collection();
         }
-        /** @var Collection $decorators */
-        $decorators =  self::$decorators[$service_name];
-        if(is_array($decorator)){
-            foreach ($decorator as $item){
+        /** @var Collection $modifiers */
+        $modifiers =  self::$modifiers[$service_name];
+        if(is_array($modifier)){
+            foreach ($modifier as $item){
                 if(is_array($item)){
                     $class = $item['class'] ?? $item[0];
                     $priority = $item['priority'] ?? $item[1];
@@ -117,20 +117,20 @@ class ServiceProvider
                     $class = $item;
                     $priority = null;
                 }
-                self::addDecorator($service_name ,$class, $priority);
+                self::addModifier($service_name ,$class, $priority);
             }
-        } else if(is_string($decorator)) {
-            if(isset(self::$decorators_service[$decorator])){
-                throw new \LogicException('Decorator is already in use for service "'.self::$decorators_service[$decorator].'"');
+        } else if(is_string($modifier)) {
+            if(isset(self::$modifiers_service[$modifier])){
+                throw new \LogicException('Modifier is already in use for service "'.self::$modifiers_service[$modifier].'"');
             }
-            $decorators->add([
-                'class' => $decorator,
+            $modifiers->add([
+                'class' => $modifier,
                 'priority' => $priority
             ]);
-            $decorators->sortBy('priority', true);
-            self::$decorators_service[$decorator] = $service_name;
+            $modifiers->sortBy('priority', true);
+            self::$modifiers_service[$modifier] = $service_name;
         } else {
-            throw new \InvalidArgumentException('Invalid $decorator argument type : expected string or array');
+            throw new \InvalidArgumentException('Invalid $modifier argument type : expected string or array');
         }
     }
 
@@ -171,15 +171,15 @@ class ServiceProvider
     }
 
     protected static function decorateService($service_name){
-        $decorators = self::getDecorators($service_name);
+        $modifiers = self::getmodifiers($service_name);
         $service_class = self::$services[$service_name]['class'];
-        /** @var Decorator $decorator */
-        foreach ($decorators as $decorator){
-            if(!is_subclass_of($decorator['class'], Decorator::class)){
-                throw  new \InvalidArgumentException('Service "'.$service_name.'" could not be loaded : invalid decorator "'.$decorator['class'].'" (expected instance of '.Decorator::class.')');
+        /** @var Modifier $modifier */
+        foreach ($modifiers as $modifier){
+            if(!is_subclass_of($modifier['class'], Modifier::class)){
+                throw  new \InvalidArgumentException('Service "'.$service_name.'" could not be loaded : invalid modifier "'.$modifier['class'].'" (expected instance of '.Modifier::class.')');
             }
-            $decorator['class']::initialize($service_class);
-            $service_class = $decorator['class'];
+            $modifier['class']::initialize($service_class);
+            $service_class = $modifier['class'];
         }
         return $service_class;
     }
@@ -209,17 +209,18 @@ class ServiceProvider
         }
     }
 
-    protected static function getDecorators(string $service_name = null) {
-        if(!isset($service_name)){
-            return self::$decorators;
-        }
-        return self::$decorators[$service_name] ?? [];
+    protected static function getModifiers(string $service_name) {
+        return self::$modifiers[$service_name] ?? [];
+    }
+
+    protected static function getAllModifiers(){
+        return self::$modifiers;
     }
 
     protected static function getInitializers(string $service_name = null){
-        if(!isset($service_name)){
-            return self::$initializers;
-        }
         return self::$initializers[$service_name] ?? [];
+    }
+    protected static function getAllInitializers(){
+        return self::$initializers;
     }
 }

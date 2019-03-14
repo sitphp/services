@@ -2,8 +2,11 @@
 
 namespace SitPHP\Services\Tests;
 
+use Doublit\Doublit;
 use Doublit\Lib\DoubleInterface;
 use Doublit\TestCase;
+use http\Exception\RuntimeException;
+use SitPHP\Services\ServiceProvider;
 
 class ServiceTraitTest extends TestCase
 {
@@ -15,7 +18,7 @@ class ServiceTraitTest extends TestCase
         $this->assertEquals( \stdClass::class, Service::testGetMyService());
     }
     function testSetServiceShouldChangeExistingService(){
-        Service::setServiceClass('my_service', self::class);
+        Service::overwriteService('my_service', self::class);
         $this->assertEquals( self::class, Service::testGetMyService());
     }
     function testGetUndefinedServiceShouldFail(){
@@ -23,23 +26,29 @@ class ServiceTraitTest extends TestCase
         $this->assertEquals( self::class, Service::testGetUndefinedService());
     }
     function testSetUndefinedServiceShouldCreateService(){
-        Service::setServiceClass('undefined_service', self::class);
+        Service::overwriteService('undefined_service', self::class);
         $this->assertEquals(self::class, Service::testGetUndefinedService());
     }
     function testGetServiceInstanceShouldReturnServiceInstance(){
-        Service::setServiceClass('my_service', self::class);
+        Service::overwriteService('my_service', self::class);
         $this->assertInstanceOf(self::class, Service::testGetServiceInstance());
     }
     function testGetServiceInstanceWithParamsRunConstructorWithParams(){
-        Service::setServiceClass('my_service', self::class);
+        Service::overwriteService('my_service', self::class);
         $instance = Service::testGetServiceInstanceWithParams(['param']);
         $this->assertEquals('param', $instance->param);
+    }
+    function testGetServiceClassWithUndefinedServiceProviderShouldFail(){
+        $this->expectException(\RuntimeException::class);
+        Service::removeService('service_provider');
+        Service::testGetMyService();
     }
 
     /*
      * Test extended class
      */
     function testExtendedServiceShouldNotOverrideParentService(){
+        Service::resetService('service_provider');
         Service::resetService('my_service');
         $this->assertEquals(\stdClass::class, ExtendedService::testGetMyExtendedService());
         $this->assertEquals(\stdClass::class, Service::testGetMyService());
@@ -52,8 +61,8 @@ class ServiceTraitTest extends TestCase
         $this->assertEquals( self::class, ExtendedService::testGetParentService());
     }
     function testExtendedSetServiceWithSameParentNameShouldReturnProperService(){
-        Service::setServiceClass('my_service', \stdClass::class);
-        ExtendedService::setServiceClass('my_service', self::class);
+        Service::overwriteService('my_service', \stdClass::class);
+        ExtendedService::overwriteService('my_service', self::class);
         $this->assertEquals(self::class, ExtendedService::testGetParentService());
         $this->assertEquals(\stdClass::class, Service::testGetMyService());
     }
@@ -63,7 +72,7 @@ class ServiceTraitTest extends TestCase
      * Test extended class without $services
      */
     function testGetParentServiceShouldReturnParentService(){
-        Service::setServiceClass('my_service', \stdClass::class);
+        Service::overwriteService('my_service', \stdClass::class);
         $this->assertEquals(\stdClass::class, NoService::testGetMyParentService());
     }
     function testGetUndefinedServiceDefinedInParentShouldFail(){
@@ -71,7 +80,7 @@ class ServiceTraitTest extends TestCase
         NoService::testGetMyService();
     }
     function testSetServiceShouldCreateService(){
-        NoService::setServiceClass('my_service', \stdClass::class);
+        NoService::overwriteService('my_service', \stdClass::class);
         $this->assertEquals(\stdClass::class, NoService::testGetMyService());
     }
 
@@ -98,17 +107,65 @@ class ServiceTraitTest extends TestCase
         $dummy = Service::mockService('my_service');
         $this->assertEquals($dummy, Service::testGetMyService());
     }
+    function testMockServiceWithoutDoubleProviderShouldFail(){
+        $this->expectException(\InvalidArgumentException::class);
+        Service::removeService('double_provider');
+        Service::mockService('my_service');
+    }
+    function testDummyServiceWithoutDoubleProviderShouldFail(){
+        $this->expectException(\InvalidArgumentException::class);
+        Service::removeService('double_provider');
+        Service::dummyService('my_service');
+    }
 
     /*
      * Test service provider
      */
     function testServiceProviderIsCalledWhenCallingUndefinedService(){
+        Service::resetService('double_provider');
         Service::resetService('undefined_service');
         $dummy = Service::dummyService('service_provider');
         $dummy::_method('getService')
             ->stub(\stdClass::class)
             ->count(1);
         $this->assertEquals(\stdClass::class, Service::testGetUndefinedService());
+        Service::resetService('service_provider');
+    }
+
+    /*
+     * Test reset service
+     */
+    function testResetService(){
+        Service::removeService('service_provider');
+        Service::removeService('double_provider');
+        Service::removeService('my_service');
+        Service::resetService('service_provider');
+        Service::resetService('double_provider');
+        Service::resetService('my_service');
+
+        $this->assertEquals(\stdClass::class, Service::testGetMyService());
+        $this->assertEquals(ServiceProvider::class, Service::testGetServiceProviderService());
+        $this->assertEquals(Doublit::class, Service::testGetDoubleProviderService());
+    }
+
+    /*
+     * Test remove service
+     */
+
+    function testRemoveService(){
+        $this->expectException(\InvalidArgumentException::class);
+        Service::removeService('my_service');
+        Service::testGetMyService();
+    }
+    function testRemoveServiceShouldCallServiceProvider(){
+        Service::removeService('my_service');
+        $dummy = Service::dummyService('service_provider');
+        $dummy::_method('getService')
+            ->stub(\stdClass::class)
+            ->count(1);
+        $this->assertEquals(\stdClass::class, Service::testGetMyService());
+        Service::resetService('service_provider');
+        Service::resetService('my_service');
     }
 }
 class SimpleClass{
@@ -120,7 +177,7 @@ class SimpleClass{
     }
 }
 class Service{
-    use \SitPHP\Services\Service;
+    use \SitPHP\Services\ServiceTrait;
 
     private static $services = [
         'my_service' => \stdClass::class,
@@ -139,10 +196,16 @@ class Service{
     static function testGetServiceInstanceWithParams(array $params){
         return self::getServiceInstance('mu_other_service', $params);
     }
+    static function testGetServiceProviderService(){
+        return self::getServiceClass('service_provider');
+    }
+    static function testGetDoubleProviderService(){
+        return self::getServiceClass('double_provider');
+    }
 }
 
 class ExtendedService extends Service {
-    use \SitPHP\Services\Service;
+    use \SitPHP\Services\ServiceTrait;
 
     private static $services = [
         'my_extended_service' => \stdClass::class
@@ -158,7 +221,7 @@ class ExtendedService extends Service {
 
 class NoService extends Service
 {
-    use \SitPHP\Services\Service;
+    use \SitPHP\Services\ServiceTrait;
 
     public static function testGetMyParentService()
     {

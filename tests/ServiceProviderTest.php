@@ -2,7 +2,8 @@
 
 namespace SitPHP\Services\Tests;
 
-use SitPHP\Services\Decorator;
+use Doublit\Doublit;
+use SitPHP\Services\Modifier;
 use SitPHP\Services\Initializer;
 use SitPHP\Services\ServiceProvider;
 use Doublit\TestCase;
@@ -52,91 +53,91 @@ class ServiceProviderTest extends TestCase
 
 
     /*
-     * Test decorator
+     * Test modifier
      */
-    function testDecoratedServiceShouldReturnDecorator()
+    function testModifiedServiceShouldReturnModifier()
     {
         ServiceProvider::setService('my_service', \stdClass::class);
-        ServiceProvider::addDecorator('my_service', MyDecorator::class);
-        $this->assertEquals(MyDecorator::class, ServiceProvider::getService('my_service'));
+        ServiceProvider::addModifier('my_service', MyModifier::class);
+        $this->assertEquals(MyModifier::class, ServiceProvider::getService('my_service'));
     }
 
-    function testArrayDecoratedServiceShouldReturnCorrectDecorator()
+    function testArrayModifiedServiceShouldReturnCorrectModifier()
     {
         ServiceProvider::setService('my_service', \stdClass::class);
-        ServiceProvider::addDecorator('my_service', [MyDecorator::class, MyOtherDecorator::class]);
-        $this->assertEquals(MyOtherDecorator::class, ServiceProvider::getService('my_service'));
+        ServiceProvider::addModifier('my_service', [MyModifier::class, MyOtherModifier::class]);
+        $this->assertEquals(MyOtherModifier::class, ServiceProvider::getService('my_service'));
     }
 
-    function testArrayPrioritizedDecoratedServiceShouldReturnCorrectDecorator()
+    function testArrayPrioritizedModifiedServiceShouldReturnCorrectModifier()
     {
         ServiceProvider::setService('my_service', \stdClass::class);
-        ServiceProvider::addDecorator('my_service', [[MyDecorator::class, 2], [MyOtherDecorator::class, 1]]);
-        $this->assertEquals(MyOtherDecorator::class, ServiceProvider::getService('my_service'));
+        ServiceProvider::addModifier('my_service', [[MyModifier::class, 2], [MyOtherModifier::class, 1]]);
+        $this->assertEquals(MyOtherModifier::class, ServiceProvider::getService('my_service'));
     }
 
-    function testArrayLabelPrioritizedDecoratedServiceShouldReturnCorrectDecorator()
+    function testArrayLabelPrioritizedModifiedServiceShouldReturnCorrectModifier()
     {
         ServiceProvider::setService('my_service', \stdClass::class);
-        ServiceProvider::addDecorator('my_service', [['class' => MyDecorator::class, 'priority' => 2], ['class' => MyOtherDecorator::class, 'priority' => 1]]);
-        $this->assertEquals(MyOtherDecorator::class, ServiceProvider::getService('my_service'));
+        ServiceProvider::addModifier('my_service', [['class' => MyModifier::class, 'priority' => 2], ['class' => MyOtherModifier::class, 'priority' => 1]]);
+        $this->assertEquals(MyOtherModifier::class, ServiceProvider::getService('my_service'));
     }
 
-    function testDecoratorsShouldBeAppliedByPriority()
+    function testModifiersShouldBeAppliedByPriority()
     {
         ServiceProvider::setService('my_service', \stdClass::class);
-        ServiceProvider::addDecorator('my_service', MyOtherDecorator::class, 1);
-        ServiceProvider::addDecorator('my_service', MyDecorator::class, 2);
-        ServiceProvider::addDecorator('my_service', MyOtherOtherDecorator::class, 1);
-        $this->assertEquals(MyOtherOtherDecorator::class, ServiceProvider::getService('my_service'));
+        ServiceProvider::addModifier('my_service', MyOtherModifier::class, 1);
+        ServiceProvider::addModifier('my_service', MyModifier::class, 2);
+        ServiceProvider::addModifier('my_service', MyOtherOtherModifier::class, 1);
+        $this->assertEquals(MyOtherOtherModifier::class, ServiceProvider::getService('my_service'));
     }
 
-    function testDecoratingUndefinedServiceShouldWork()
+    function testModifyingUndefinedServiceShouldWork()
     {
-        ServiceProvider::addDecorator('my_service', MyDecorator::class);
+        ServiceProvider::addModifier('my_service', MyModifier::class);
         $this->assertNull(ServiceProvider::getService('my_service'));
         ServiceProvider::setService('my_service', \stdClass::class);
-        $this->assertEquals(MyDecorator::class, ServiceProvider::getService('my_service'));
+        $this->assertEquals(MyModifier::class, ServiceProvider::getService('my_service'));
     }
 
-    function testGetServiceWithNonDecoratorClassShouldFail()
+    function testGetServiceWithNonModifierClassShouldFail()
     {
         $this->expectException(\InvalidArgumentException::class);
         ServiceProvider::setService('my_service', \stdClass::class);
-        ServiceProvider::addDecorator('my_service', \stdClass::class);
+        ServiceProvider::addModifier('my_service', \stdClass::class);
         ServiceProvider::getService('my_service');
     }
 
-    function testGetServiceWithInvalidDecoratorShouldFail()
+    function testGetServiceWithInvalidModifierShouldFail()
     {
         $this->expectException(\RuntimeException::class);
         ServiceProvider::setService('my_service', \stdClass::class);
-        ServiceProvider::addDecorator('my_service', MyInvalidDecorator::class);
+        ServiceProvider::addModifier('my_service', MyInvalidModifier::class);
         ServiceProvider::getService('my_service');
     }
 
-    function testAddingInvalidDecoratorTypeShouldFail()
+    function testAddingInvalidModifierTypeShouldFail()
     {
         $this->expectException(\InvalidArgumentException::class);
-        ServiceProvider::addDecorator('my_service', new \stdClass());
+        ServiceProvider::addModifier('my_service', new \stdClass());
     }
 
-    function testAddingDecoratorToAlreadyRetrievedServiceShouldFail()
+    function testAddingModifierToAlreadyRetrievedServiceShouldFail()
     {
         $this->expectException(\LogicException::class);
         ServiceProvider::setService('my_service', \stdClass::class);
         ServiceProvider::getService('my_service');
-        ServiceProvider::addDecorator('my_service', MyOtherDecorator::class);
+        ServiceProvider::addModifier('my_service', MyOtherModifier::class);
     }
 
-    function testAddingSameDecoratorMultipleServicesShouldFail()
+    function testAddingSameModifierMultipleServicesShouldFail()
     {
         $this->expectException(\LogicException::class);
 
         ServiceProvider::setService('my_service_1', \stdClass::class);
         ServiceProvider::setService('my_service_2', \stdClass::class);
-        ServiceProvider::addDecorator('my_service_1', MyDecorator::class);
-        ServiceProvider::addDecorator('my_service_2', MyDecorator::class);
+        ServiceProvider::addModifier('my_service_1', MyModifier::class);
+        ServiceProvider::addModifier('my_service_2', MyModifier::class);
     }
 
     /*
@@ -178,7 +179,7 @@ class ServiceProviderTest extends TestCase
 
     function testAddingInitializerToUndefinedServiceShouldWork()
     {
-        ServiceProvider::addInitializer('my_service', MyInitializer::class);
+        ServiceProvider::addInitializer('my_service', [MyInitializer::class]);
         $this->assertNull(ServiceProvider::getService('my_service'));
         ServiceProvider::setService('my_service', \stdClass::class);
         ServiceProvider::getService('my_service');
@@ -228,24 +229,39 @@ class ServiceProviderTest extends TestCase
         ServiceProvider::addInitializer('my_service_2', MyInitializer::class);
     }
 
+
+    /*
+     * Test unused private methods
+     */
+    function testGetAllModifiers(){
+        $class = new \ReflectionClass(ServiceProvider::class);
+        $get_all_modifiers = $class->getMethod('getAllModifiers');
+        $get_all_modifiers->setAccessible(true);
+        $get_all_initializers = $class->getMethod('getAllInitializers');
+        $get_all_initializers->setAccessible(true);
+
+        $this->assertIsArray($get_all_modifiers->invoke($class));
+        $this->assertIsArray($get_all_initializers->invoke($class));
+    }
+
 }
 
-class MyDecorator extends Decorator
+class MyModifier extends Modifier
 {
-    protected static $decorated;
+    protected static $modified;
 }
 
-class MyOtherDecorator extends Decorator
+class MyOtherModifier extends Modifier
 {
-    protected static $decorated;
+    protected static $modified;
 }
 
-class MyOtherOtherDecorator extends Decorator
+class MyOtherOtherModifier extends Modifier
 {
-    protected static $decorated;
+    protected static $modified;
 }
 
-class MyInvalidDecorator extends Decorator
+class MyInvalidModifier extends Modifier
 {
 }
 
