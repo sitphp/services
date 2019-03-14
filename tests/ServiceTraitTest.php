@@ -92,7 +92,7 @@ class ServiceTraitTest extends TestCase
         $mock = Service::mockService('my_service');
         $this->assertTrue(is_subclass_of($mock,DoubleInterface::class));
     }
-    function testDumServiceShouldReturnInstanceOfDouble(){
+    function testDummyServiceShouldReturnInstanceOfDouble(){
         Service::resetService('my_service');
         $dummy = Service::dummyService('my_service');
         $this->assertTrue(is_subclass_of($dummy,DoubleInterface::class));
@@ -116,6 +116,18 @@ class ServiceTraitTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         Service::removeService('double_provider');
         Service::dummyService('my_service');
+    }
+    function testDummyServiceTwiceShouldApplyLastDummy(){
+        $dummy_1 = Service::dummyService('my_service');
+        $dummy_2 = Service::dummyService('my_service');
+
+        $this->assertEquals($dummy_2, Service::testGetMyService());
+    }
+    function testMockServiceTwiceShouldApplyLastDummy(){
+        $mock_1 = Service::mockService('my_service');
+        $mock_2 = Service::mockService('my_service');
+
+        $this->assertEquals($mock_2, Service::testGetMyService());
     }
 
     /*

@@ -106,7 +106,7 @@ trait ServiceTrait
     static function mockService(string $name)
     {
         self::initializeServices();
-
+        self::resetService($name);
         $double_provider = self::getServiceClass('double_provider');
         $service = self::getServiceClass($name);
         $mock = $double_provider::mock($service)->getClass();
@@ -123,7 +123,7 @@ trait ServiceTrait
     static function dummyService(string $name)
     {
         self::initializeServices();
-
+        self::resetService($name);
         $double_provider = self::getServiceClass('double_provider');
         $service = self::getServiceClass($name);
         $dummy = $double_provider::dummy($service)->getClass();
