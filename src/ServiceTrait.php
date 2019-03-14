@@ -101,7 +101,7 @@ trait ServiceTrait
      * Return a mock double class
      *
      * @param string $name
-     * @return mixed
+     * @return DoubleStub
      */
     static function mockService(string $name)
     {
