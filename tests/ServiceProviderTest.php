@@ -3,6 +3,8 @@
 namespace SitPHP\Services\Tests;
 
 use Doublit\Doublit;
+use Doublit\Lib\DoubleStub;
+use SitPHP\Helpers\Collection;
 use SitPHP\Services\Modifier;
 use SitPHP\Services\Initializer;
 use SitPHP\Services\ServiceProvider;
@@ -234,14 +236,19 @@ class ServiceProviderTest extends TestCase
      * Test unused private methods
      */
     function testGetAllModifiers(){
-        $class = new \ReflectionClass(ServiceProvider::class);
+        /** @var ServiceProvider & DoubleStub $double */
+        $double = Doublit::mock(ServiceProvider::class)->getClass();
+        $double::addModifier('my_service',MyModifier::class);
+        $double::addInitializer('my_service',MyInitializer::class);
+
+        $class = new \ReflectionClass($double);
         $get_all_modifiers = $class->getMethod('getAllModifiers');
         $get_all_modifiers->setAccessible(true);
         $get_all_initializers = $class->getMethod('getAllInitializers');
         $get_all_initializers->setAccessible(true);
 
-        $this->assertIsArray($get_all_modifiers->invoke($class));
-        $this->assertIsArray($get_all_initializers->invoke($class));
+        $this->assertEquals(['my_service'=> new Collection([['class'=>MyModifier::class,'priority'=>null]])], $get_all_modifiers->invoke($class));
+        $this->assertEquals(['my_service'=> new Collection([['class'=>MyInitializer::class,'priority'=>null]])], $get_all_initializers->invoke($class));
     }
 
 }
