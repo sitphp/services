@@ -21,7 +21,7 @@ class ServiceProvider
             return null;
         }
         if(!isset(self::$prepared[$service_name])){
-            $service_class = self::decorateService($service_name);
+            $service_class = self::modifyService($service_name);
             self::initializeService($service_name, $service_class);
             self::$prepared[$service_name] = $service_class;
         }
@@ -170,7 +170,7 @@ class ServiceProvider
         }
     }
 
-    protected static function decorateService($service_name){
+    protected static function modifyService($service_name){
         $modifiers = self::getmodifiers($service_name);
         $service_class = self::$services[$service_name]['class'];
         /** @var Modifier $modifier */

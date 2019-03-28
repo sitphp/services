@@ -10,28 +10,13 @@ use \Doublit\Lib\DoubleStub;
 trait ServiceTrait
 {
     private static $service_initialized = false;
-    private static $internal_services = [
-        'service_provider' => SERVICE_PROVIDER,
-        'double_provider' => DOUBLE_PROVIDER,
-    ];
+    /** @var \Doublit\Doublit $double_provider */
+    private static $double_provider = DOUBLE_PROVIDER;
+    /** @var ServiceProvider $service_provider */
+    private static $service_provider = SERVICE_PROVIDER;
     private static $overwritten_services = [];
+    private static $doubled_services = [];
 
-    /**
-     *  Register class services
-     */
-    private static function initializeServices()
-    {
-        if (self::$service_initialized) {
-            return;
-        }
-        self::$service_initialized = true;
-        if (!isset(self::$services)) {
-            return;
-        }
-        foreach (self::$services as $name => $class) {
-            self::$internal_services[$name] = $class;
-        }
-    }
 
     /**
      * Return service class
@@ -41,17 +26,10 @@ trait ServiceTrait
      */
     private static function getServiceClass(string $name)
     {
-        self::initializeServices();
-        /** @var ServiceProvider $service_provider */
-        $service_provider = self::$overwritten_services['service_provider'] ?? self::$internal_services['service_provider'] ?? null;
-        if ($service_provider === null) {
-            throw new \RuntimeException('Undefined required "service_provider" service.');
-        }
-        $service = self::$overwritten_services[$name] ?? self::$internal_services[$name] ?? $service_provider::getService($name) ?? null;
+        $service = self::$doubled_services[$name] ?? self::$overwritten_services[$name] ?? self::$services[$name] ?? self::$service_provider::getService($name) ?? null;
         if ($service === null) {
             throw new \InvalidArgumentException('Undefined service "' . $name . '".');
         }
-
         return $service;
     }
 
@@ -64,7 +42,6 @@ trait ServiceTrait
      */
     private static function getServiceInstance(string $name, array $params = null)
     {
-        self::initializeServices();
         $service = self::getServiceClass($name);
         if (isset($params)) {
             return new $service(...$params);
@@ -80,38 +57,23 @@ trait ServiceTrait
      */
     static function overwriteService(string $name, string $class)
     {
-        self::initializeServices();
+        self::restoreService($name);
         self::$overwritten_services[$name] = $class;
     }
-
-    /**
-     * Remove service definition
-     *
-     * @param string $name
-     */
-    static function removeService(string $name)
-    {
-        self::initializeServices();
-        self::$internal_services[$name] = null;
-        self::$overwritten_services[$name] = null;
-    }
-
 
     /**
      * Return a mock double class
      *
      * @param string $name
      * @return DoubleStub
+     * @throws \ReflectionException
      */
     static function mockService(string $name)
     {
-        self::initializeServices();
-        self::resetService($name);
-        $double_provider = self::getServiceClass('double_provider');
+        self::restoreService($name);
         $service = self::getServiceClass($name);
-        $mock = $double_provider::mock($service)->getClass();
-        self::overwriteService($name, $mock);
-        return $mock;
+        $mock = self::$double_provider::mock($service)->getClass();
+        return self::$doubled_services[$name] = $mock;
     }
 
     /**
@@ -119,33 +81,48 @@ trait ServiceTrait
      *
      * @param $name
      * @return DoubleStub
+     * @throws \ReflectionException
      */
     static function dummyService(string $name)
     {
-        self::initializeServices();
-        self::resetService($name);
-        $double_provider = self::getServiceClass('double_provider');
+        self::restoreService($name);
         $service = self::getServiceClass($name);
-        $dummy = $double_provider::dummy($service)->getClass();
-        self::overwriteService($name, $dummy);
-        return $dummy;
+        $dummy = self::$double_provider::dummy($service)->getClass();
+        return self::$doubled_services[$name] = $dummy;
     }
 
     /**
-     * Reset class service to original definition
+     * Restore service double
+     *
+     * @param string $name
+     */
+    static function restoreService(string $name){
+        self::$doubled_services[$name] = null;
+
+    }
+
+    /**
+     * Remove all services doubles made via "dummyService" and "mockService" methods
+     */
+    static function restoreAllServices(){
+        self::$doubled_services = [];
+    }
+
+    /**
+     * Remove overwritten service via "overwriteService"
      *
      * @param string $name
      */
     static function resetService(string $name)
     {
-        self::initializeServices();
         self::$overwritten_services[$name] = null;
-        if ($name == 'service_provider') {
-            self::$internal_services[$name] = SERVICE_PROVIDER;
-        } else if ($name == 'double_provider') {
-            self::$internal_services[$name] = DOUBLE_PROVIDER;
-        } else if (isset(self::$services[$name])) {
-            self::$internal_services[$name] = self::$services[$name];
-        }
+    }
+
+    /**
+     * Remove all overwritten services via "overwriteService"
+     */
+    static function resetAllServices(){
+        self::restoreAllServices();
+        self::$overwritten_services = [];
     }
 }

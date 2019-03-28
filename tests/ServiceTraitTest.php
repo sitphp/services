@@ -2,14 +2,18 @@
 
 namespace SitPHP\Services\Tests;
 
-use Doublit\Doublit;
 use Doublit\Lib\DoubleInterface;
 use Doublit\TestCase;
-use http\Exception\RuntimeException;
-use SitPHP\Services\ServiceProvider;
 
 class ServiceTraitTest extends TestCase
 {
+
+    function tearDown()
+    {
+        parent::tearDown();
+        Service::resetAllServices();
+        ExtendedService::resetAllServices();
+    }
 
     /*
      * Test standard class
@@ -37,11 +41,6 @@ class ServiceTraitTest extends TestCase
         Service::overwriteService('my_service', self::class);
         $instance = Service::testGetServiceInstanceWithParams(['param']);
         $this->assertEquals('param', $instance->param);
-    }
-    function testGetServiceClassWithUndefinedServiceProviderShouldFail(){
-        $this->expectException(\RuntimeException::class);
-        Service::removeService('service_provider');
-        Service::testGetMyService();
     }
 
     /*
@@ -107,16 +106,6 @@ class ServiceTraitTest extends TestCase
         $dummy = Service::mockService('my_service');
         $this->assertEquals($dummy, Service::testGetMyService());
     }
-    function testMockServiceWithoutDoubleProviderShouldFail(){
-        $this->expectException(\InvalidArgumentException::class);
-        Service::removeService('double_provider');
-        Service::mockService('my_service');
-    }
-    function testDummyServiceWithoutDoubleProviderShouldFail(){
-        $this->expectException(\InvalidArgumentException::class);
-        Service::removeService('double_provider');
-        Service::dummyService('my_service');
-    }
     function testDummyServiceTwiceShouldApplyLastDummy(){
         $dummy_1 = Service::dummyService('my_service');
         $dummy_2 = Service::dummyService('my_service');
@@ -133,8 +122,7 @@ class ServiceTraitTest extends TestCase
     /*
      * Test service provider
      */
-    function testServiceProviderIsCalledWhenCallingUndefinedService(){
-        Service::resetService('double_provider');
+    /*function testServiceProviderShouldBeCalledWhenCallingUndefinedService(){
         Service::resetService('undefined_service');
         $dummy = Service::dummyService('service_provider');
         $dummy::_method('getService')
@@ -142,43 +130,17 @@ class ServiceTraitTest extends TestCase
             ->count(1);
         $this->assertEquals(\stdClass::class, Service::testGetUndefinedService());
         Service::resetService('service_provider');
-    }
+    }*/
 
     /*
      * Test reset service
      */
     function testResetService(){
-        Service::removeService('service_provider');
-        Service::removeService('double_provider');
-        Service::removeService('my_service');
-        Service::resetService('service_provider');
-        Service::resetService('double_provider');
+        Service::overwriteService('my_service',__CLASS__);
         Service::resetService('my_service');
-
         $this->assertEquals(\stdClass::class, Service::testGetMyService());
-        $this->assertEquals(ServiceProvider::class, Service::testGetServiceProviderService());
-        $this->assertEquals(Doublit::class, Service::testGetDoubleProviderService());
     }
 
-    /*
-     * Test remove service
-     */
-
-    function testRemoveService(){
-        $this->expectException(\InvalidArgumentException::class);
-        Service::removeService('my_service');
-        Service::testGetMyService();
-    }
-    function testRemoveServiceShouldCallServiceProvider(){
-        Service::removeService('my_service');
-        $dummy = Service::dummyService('service_provider');
-        $dummy::_method('getService')
-            ->stub(\stdClass::class)
-            ->count(1);
-        $this->assertEquals(\stdClass::class, Service::testGetMyService());
-        Service::resetService('service_provider');
-        Service::resetService('my_service');
-    }
 }
 class SimpleClass{
     public $param;
